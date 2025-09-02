@@ -18,7 +18,13 @@ export default function OrderHistory() {
   }, [customerName])
 
   const reorder = (order) => {
-    localStorage.setItem('CART', JSON.stringify(order.items.map(i => ({ _id: i.menuItemId, name: i.name, price: i.price, qty: i.qty }))))
+    const cartItems = order.items.map(i => ({
+      _id: i.menuItemId,
+      name: i.name,
+      price: i.price,
+      qty: i.qty
+    }));
+    localStorage.setItem('CART', JSON.stringify(cartItems))
     window.location.href = '/'
   }
 
@@ -29,7 +35,6 @@ export default function OrderHistory() {
   }
 
   const submitFeedback = () => {
-    // In MVP, store feedback locally; can be wired to /api/feedbacks later
     const fb = JSON.parse(localStorage.getItem('FEEDBACKS') || '[]')
     fb.push({ orderId: selectedOrder?._id, rating, comment, createdAt: new Date().toISOString() })
     localStorage.setItem('FEEDBACKS', JSON.stringify(fb))

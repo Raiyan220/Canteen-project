@@ -14,7 +14,6 @@ export async function createOrder(req, res) {
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "No items in order" });
     }
-    // Map incoming items to DB-verified data
     const menuIds = items.map(i => i.menuItemId);
     const menuDocs = await MenuItem.find({ _id: { $in: menuIds } });
     const menuMap = new Map(menuDocs.map(d => [String(d._id), d]));
@@ -88,6 +87,42 @@ export async function cancelOrder(req, res) {
     order.status = "Cancelled";
     order.cancelledAt = new Date();
     await order.save();
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// --- NEW FUNCTIONS FOR ADMIN ---
+
+// List all active orders (Pending, Preparing, Ready)
+export async function listActiveOrders(req, res) {
+  try {
+    const orders = await Order.find({ status: { $in: ["Pending", "Preparing", "Ready"] } })
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Update order status (admin)
+export async function updateOrderStatus(req, res) {
+  try {
+    const { status } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: "Not found" });
+
+    const validStatuses = ["Pending", "Preparing", "Ready", "Collected", "Cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    order.status = status;
+    if (status === "Cancelled") order.cancelledAt = new Date();
+    if (status === "Collected") order.collectedAt = new Date();
+    await order.save();
+
     res.json(order);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,80 +1,36 @@
 import { Router } from "express";
-import MenuItem from "../models/MenuItem.js";
+import {
+  listMenu,
+  getMenuItem,
+  createMenuItem,
+  updateMenuItem,
+  deleteMenuItem
+} from "../controllers/menuController.js";
 import { requireAdmin } from "../utils/auth.js";
 
 const router = Router();
 
 /**
- * GET all menu items
+ * Public Routes
  */
-router.get("/", async (req, res) => {
-  try {
-    const items = await MenuItem.find();
-    res.json(items);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch menu items" });
-  }
-});
+
+// GET all menu items (supports filters: category, search, specials)
+router.get("/", listMenu);
+
+// GET a single menu item by ID
+router.get("/:id", getMenuItem);
 
 /**
- * GET a single menu item by ID
+ * Admin Routes (password protected)
  */
-router.get("/:id", async (req, res) => {
-  try {
-    const item = await MenuItem.findById(req.params.id);
-    if (!item) return res.status(404).json({ error: "Menu item not found" });
-    res.json(item);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch menu item" });
-  }
-});
 
-/**
- * POST create a new menu item (Admin only)
- */
-router.post("/", requireAdmin, async (req, res) => {
-  try {
-    const newItem = new MenuItem(req.body);
-    const savedItem = await newItem.save();
-    res.status(201).json(savedItem);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to create menu item" });
-  }
-});
+// POST create new menu item
+router.post("/", requireAdmin, createMenuItem);
 
-/**
- * PUT update a menu item by ID (Admin only)
- */
-router.put("/:id", requireAdmin, async (req, res) => {
-  try {
-    const updatedItem = await MenuItem.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedItem) return res.status(404).json({ error: "Menu item not found" });
-    res.json(updatedItem);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update menu item" });
-  }
-});
+// PUT update menu item by ID
+router.put("/:id", requireAdmin, updateMenuItem);
 
-/**
- * DELETE a menu item by ID (Admin only)
- */
-router.delete("/:id", requireAdmin, async (req, res) => {
-  try {
-    const deletedItem = await MenuItem.findByIdAndDelete(req.params.id);
-    if (!deletedItem) return res.status(404).json({ error: "Menu item not found" });
-    res.json({ message: "Menu item deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete menu item" });
-  }
-});
+// DELETE menu item by ID
+router.delete("/:id", requireAdmin, deleteMenuItem);
 
 export default router;
