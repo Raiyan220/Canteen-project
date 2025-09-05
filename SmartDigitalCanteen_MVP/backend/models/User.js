@@ -1,85 +1,80 @@
-// backend/models/User.js (UPDATED - fix createdBy validation)
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const UserSchema = new mongoose.Schema({
-  username: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true,
-    minlength: 3,
-    maxlength: 30
-  },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
-  },
-  password: { 
-    type: String, 
-    required: true,
-    minlength: 6
-  },
-  role: { 
-    type: String, 
-    enum: ["customer", "staff", "admin", "super_admin"], 
-    default: "customer" 
-  },
-  isActive: { 
-    type: Boolean, 
-    default: true 
-  },
-  createdBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "User",
-    // FIXED: Only required for staff and admin roles
-    required: function() {
-      return this.role === 'staff' || this.role === 'admin';
+  username: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['customer', 'staff', 'admin', 'super_admin'], default: 'customer' },
+  
+  // Enhanced profile with guest migration support
+  profile: {
+    phone: String,
+    preferences: {
+      favoriteItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' }],
+      notifications: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        orderUpdates: { type: Boolean, default: true }
+      }
     }
   },
-  lastLogin: { type: Date },
+  
+  // Guest data migration tracking
+  guestData: {
+    originalGuestId: String,
+    migratedAt: Date,
+    orderHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+    totalOrdersAsGuest: { type: Number, default: 0 },
+    totalSpentAsGuest: { type: Number, default: 0 }
+  },
+  
+  // Account management
+  isActive: { type: Boolean, default: true },
+  lastLogin: Date,
+  
+  // Security features (existing)
   loginAttempts: { type: Number, default: 0 },
-  lockUntil: { type: Date }
-}, { 
-  timestamps: true 
+  lockUntil: Date,
+  
+  // Timestamps
+  createdAt: { type: Date, default: Date.now },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, {
+  timestamps: true
 });
 
-// Hash password before saving
-UserSchema.pre("save", async function(next) {
-  if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-// Compare password method
-UserSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-// Check if account is locked
+// Virtual for checking if account is locked
 UserSchema.virtual('isLocked').get(function() {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
-// Increment login attempts
-UserSchema.methods.incLoginAttempts = async function() {
+// Password hashing middleware
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
+
+// Password comparison method
+UserSchema.methods.comparePassword = async function(password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+// Login attempts management
+UserSchema.methods.incLoginAttempts = function() {
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return this.updateOne({
-      $unset: { lockUntil: 1 },
-      $set: { loginAttempts: 1 }
+      $unset: { loginAttempts: 1, lockUntil: 1 }
     });
   }
   
   const updates = { $inc: { loginAttempts: 1 } };
-  
   if (this.loginAttempts + 1 >= 5 && !this.isLocked) {
-    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 };
+    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // 2 hours
   }
   
   return this.updateOne(updates);
 };
 
-export default mongoose.model("User", UserSchema);
+export default mongoose.model('User', UserSchema);

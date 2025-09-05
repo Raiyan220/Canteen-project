@@ -1,17 +1,17 @@
 import { motion } from "framer-motion";
+import { useAuth } from "../contexts/AuthContext";
+import guestManager from "../utils/GuestManager";
 
 export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }) {
-  // FIXED: Proper out of stock detection
+  const { isAuthenticated } = useAuth();
   const isOutOfStock = item.stock === 0 || item.isOutOfStock;
 
-  // FIXED: Add to cart with stock validation
   const handleAddToCart = () => {
     if (isOutOfStock) {
       alert(`❌ Sorry! ${item.name} is currently out of stock and cannot be added to cart.`);
       return;
     }
     
-    // Check if item has limited stock and warn when low
     if (item.stock !== -1 && item.stock <= 5) {
       const proceed = confirm(`⚠️ Only ${item.stock} ${item.name} left in stock. Add to cart?`);
       if (!proceed) return;
@@ -20,7 +20,34 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
     onAdd(item);
   };
 
-  // Determine stock status for display
+  // Enhanced favorite toggle with guest support
+  const handleToggleFavorite = () => {
+    toggleFavorite(item);
+    
+    // Update guest preferences if not authenticated
+    if (!isAuthenticated) {
+      const favorites = JSON.parse(localStorage.getItem('FAVORITES') || '[]');
+      guestManager.updatePreferences({ favorites });
+      
+      // Show upgrade hint after 3 favorites
+      if (favorites.length >= 3) {
+        setTimeout(() => {
+          const shouldCreate = confirm(
+            `💝 You have ${favorites.length} favorite items!\n\n` +
+            'Create an account to save them across all your devices?\n\n' +
+            '✅ Access favorites from any device\n' +
+            '✅ Never lose your preferences\n' +
+            '✅ Get notified of special deals on favorites'
+          );
+          
+          if (shouldCreate) {
+            guestManager.showUpgradeModal();
+          }
+        }, 1000);
+      }
+    }
+  };
+
   const getStockStatus = () => {
     if (item.stock === -1) return { text: "Unlimited", color: "text-green-600", bg: "bg-green-50" };
     if (isOutOfStock) return { text: "Out of Stock", color: "text-red-600", bg: "bg-red-50" };
@@ -72,9 +99,9 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
           </div>
         )}
         
-        {/* Favorite Button */}
+        {/* Enhanced Favorite Button */}
         <button
-          onClick={() => toggleFavorite(item)}
+          onClick={handleToggleFavorite}
           className="absolute top-2 right-2 p-2 rounded-full bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-200 shadow-sm"
           title={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
@@ -106,7 +133,7 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
           </p>
         </div>
 
-        {/* FIXED: Stock Status Badge */}
+        {/* Stock Status Badge */}
         <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${stockStatus.bg} ${stockStatus.color}`}>
           📦 {stockStatus.text}
         </div>
@@ -123,7 +150,6 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
             )}
           </div>
 
-          {/* FIXED: Add to Cart Button with Stock Validation */}
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock}
