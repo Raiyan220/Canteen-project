@@ -1,11 +1,11 @@
-// backend/controllers/authController.js (NEW FILE)
+// backend/controllers/authController.js (COMPLETE FILE)
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const generateToken = (userId, role) => {
   return jwt.sign(
-    { userId, role }, 
-    process.env.JWT_SECRET, 
+    { userId, role },
+    process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
@@ -13,14 +13,13 @@ const generateToken = (userId, role) => {
 export const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    
     const existingUser = await User.findOne({
       $or: [{ email }, { username }]
     });
-    
+
     if (existingUser) {
-      return res.status(400).json({ 
-        error: "User already exists with this email or username" 
+      return res.status(400).json({
+        error: "User already exists with this email or username"
       });
     }
 
@@ -52,16 +51,15 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email }).select('+password');
-    
+
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     if (user.isLocked) {
-      return res.status(423).json({ 
-        error: "Account temporarily locked due to too many failed login attempts" 
+      return res.status(423).json({
+        error: "Account temporarily locked due to too many failed login attempts"
       });
     }
 
@@ -70,7 +68,6 @@ export const login = async (req, res) => {
     }
 
     const isMatch = await user.comparePassword(password);
-    
     if (!isMatch) {
       await user.incLoginAttempts();
       return res.status(401).json({ error: "Invalid credentials" });
@@ -110,14 +107,14 @@ export const createStaffAccount = async (req, res) => {
     const createdBy = req.user.userId;
 
     if (role === 'admin' && req.user.role !== 'super_admin') {
-      return res.status(403).json({ 
-        error: "Only super administrators can create admin accounts" 
+      return res.status(403).json({
+        error: "Only super administrators can create admin accounts"
       });
     }
 
     if (!['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: "Insufficient permissions to create staff accounts" 
+      return res.status(403).json({
+        error: "Insufficient permissions to create staff accounts"
       });
     }
 
@@ -151,7 +148,7 @@ export const getProfile = async (req, res) => {
     const user = await User.findById(req.user.userId)
       .select('-password')
       .populate('createdBy', 'username email');
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

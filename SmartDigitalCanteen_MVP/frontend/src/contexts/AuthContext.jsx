@@ -1,4 +1,4 @@
-// frontend/src/contexts/AuthContext.jsx (NEW FILE)
+// frontend/src/contexts/AuthContext.jsx (COMPLETE FILE)
 import { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../api/api';
 
@@ -42,16 +42,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       const { token, user } = response.data;
-      
+
       localStorage.setItem('auth_token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setUser(user);
-      
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Login failed'
       };
     }
   };
@@ -60,16 +60,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/api/auth/register', userData);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('auth_token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setUser(user);
-      
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Registration failed'
       };
     }
   };

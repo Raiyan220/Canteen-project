@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   // Daily report state
   const [dailyReport, setDailyReport] = useState(null);
 
-  // Sales report state (Feature 13)
+  // Sales report state
   const [salesReport, setSalesReport] = useState(null);
   const [salesRange, setSalesRange] = useState({ start: "", end: "" });
 
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
     }
   };
 
-  /** SALES REPORT (Feature 13) */
+  /** SALES REPORT */
   const fetchSalesReport = async () => {
     try {
       if (!salesRange.start || !salesRange.end) {
@@ -180,175 +180,383 @@ export default function AdminDashboard() {
   /** LOGIN SCREEN */
   if (!isLoggedIn) {
     return (
-      <div className="max-w-sm mx-auto bg-white shadow p-6 rounded-2xl">
-        <h2 className="text-xl font-bold mb-4 text-center">Admin Access</h2>
-        <form onSubmit={handleLogin} className="flex flex-col gap-3">
-          <input
-            type="password"
-            placeholder="Enter admin password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border rounded p-2"
-          />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button type="submit" className="bg-blue-600 text-white rounded p-2 hover:bg-blue-700">
-            Login
-          </button>
-        </form>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Admin Dashboard
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Enter admin password to continue
+            </p>
+          </div>
+          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Admin Password"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
+            >
+              Login
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
 
-  /** DASHBOARD */
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-      <p className="text-gray-600">Manage menu items, active orders & reports 🎉</p>
-
-      {/* Menu Form */}
-      <form onSubmit={handleSubmit} className="bg-white shadow rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input name="name" value={form.name} onChange={handleChange} placeholder="Item Name" className="border rounded px-3 py-2" required />
-        <input name="price" type="number" value={form.price} onChange={handleChange} placeholder="Price" className="border rounded px-3 py-2" required />
-        <input name="description" value={form.description} onChange={handleChange} placeholder="Description" className="border rounded px-3 py-2 col-span-2" />
-        <input name="imageUrl" value={form.imageUrl} onChange={handleChange} placeholder="Image URL" className="border rounded px-3 py-2 col-span-2" />
-        <select name="category" value={form.category} onChange={handleChange} className="border rounded px-3 py-2">
-          <option>Breakfast</option>
-          <option>Lunch</option>
-          <option>Drinks</option>
-          <option>Snacks</option>
-        </select>
-        <input name="stock" type="number" value={form.stock} onChange={handleChange} placeholder="Stock (-1 for unlimited)" className="border rounded px-3 py-2" />
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="isSpecial" checked={form.isSpecial} onChange={handleChange} /> Daily Special
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="isOutOfStock" checked={form.isOutOfStock} onChange={handleChange} /> Out of Stock
-        </label>
-        <button type="submit" className="bg-blue-600 text-white rounded-xl py-2 col-span-2 hover:bg-blue-700">
-          {editingItem ? "Update Item" : "Add Item"}
-        </button>
-      </form>
-
-      {/* Menu Table */}
-      <div className="overflow-x-auto bg-white shadow rounded-2xl p-4">
-        <table className="w-full table-auto mb-6">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2 px-3">Name</th>
-              <th className="py-2 px-3">Price</th>
-              <th className="py-2 px-3">Category</th>
-              <th className="py-2 px-3">Stock</th>
-              <th className="py-2 px-3">Special</th>
-              <th className="py-2 px-3">Out of Stock</th>
-              <th className="py-2 px-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {menuItems.map((item) => (
-              <tr key={item._id} className="border-b hover:bg-gray-50">
-                <td className="py-2 px-3">{item.name}</td>
-                <td className="py-2 px-3">৳ {item.price}</td>
-                <td className="py-2 px-3">{item.category}</td>
-                <td className="py-2 px-3">{item.stock === -1 ? "Unlimited" : item.stock}</td>
-                <td className="py-2 px-3">
-                  {item.isSpecial ? "Yes" : "No"}
-                  <button onClick={() => toggleDailySpecial(item)} className="ml-2 px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs">
-                    Toggle
-                  </button>
-                </td>
-                <td className="py-2 px-3">{item.isOutOfStock ? "Yes" : "No"}</td>
-                <td className="py-2 px-3 flex gap-2">
-                  <button onClick={() => handleEdit(item)} className="px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500">Edit</button>
-                  <button onClick={() => handleDelete(item._id)} className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Active Orders Table */}
-      <div className="overflow-x-auto bg-white shadow rounded-2xl p-4">
-        <h2 className="text-xl font-semibold mb-4">Active Orders</h2>
-        <table className="w-full table-auto mb-6">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2 px-3">Order ID</th>
-              <th className="py-2 px-3">Customer</th>
-              <th className="py-2 px-3">Items</th>
-              <th className="py-2 px-3">Total</th>
-              <th className="py-2 px-3">Status</th>
-              <th className="py-2 px-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeOrders.map((order) => (
-              <tr key={order._id} className="border-b hover:bg-gray-50">
-                <td className="py-2 px-3">{order._id}</td>
-                <td className="py-2 px-3">{order.customerName}</td>
-                <td className="py-2 px-3">{order.items.map(it => `${it.name} x${it.qty}`).join(", ")}</td>
-                <td className="py-2 px-3">৳ {order.total}</td>
-                <td className="py-2 px-3">{order.status}</td>
-                <td className="py-2 px-3 flex gap-2 flex-wrap">
-                  {["Pending", "Preparing", "Ready"].includes(order.status) && (
-                    <>
-                      {order.status !== "Preparing" && <button onClick={() => updateOrderStatus(order._id, "Preparing")} className="px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500">Preparing</button>}
-                      {order.status !== "Ready" && <button onClick={() => updateOrderStatus(order._id, "Ready")} className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Ready</button>}
-                      {order.status !== "Collected" && <button onClick={() => updateOrderStatus(order._id, "Collected")} className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Collected</button>}
-                      {order.status !== "Cancelled" && <button onClick={() => updateOrderStatus(order._id, "Cancelled")} className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Cancel</button>}
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Daily Report */}
-      {dailyReport && (
-        <div className="bg-white shadow rounded-2xl p-4">
-          <h2 className="text-xl font-semibold mb-4">Daily Report ({dailyReport.date})</h2>
-          <p>Total Orders: <strong>{dailyReport.totalOrders}</strong></p>
-          <p>Revenue: <strong>৳ {dailyReport.revenue}</strong></p>
-          <h3 className="font-semibold mt-3">Top Selling Items:</h3>
-          <ul className="list-disc ml-5">
-            {dailyReport.topSelling.map((item) => (
-              <li key={item.name}>{item.name} x {item.qty}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Sales Report (Feature 13) */}
-      <div className="bg-white shadow rounded-2xl p-4">
-        <h2 className="text-xl font-semibold mb-4">Sales Report</h2>
-        <div className="flex gap-2 mb-3 flex-wrap">
-          <label>
-            Start Date:{" "}
-            <input type="date" name="start" value={salesRange.start} onChange={handleSalesRangeChange} className="border rounded px-2 py-1" />
-          </label>
-          <label>
-            End Date:{" "}
-            <input type="date" name="end" value={salesRange.end} onChange={handleSalesRangeChange} className="border rounded px-2 py-1" />
-          </label>
-          <button onClick={fetchSalesReport} className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-            Fetch Report
-          </button>
-        </div>
-
-        {salesReport && (
-          <div>
-            <p>Total Orders: <strong>{salesReport.totalOrders}</strong></p>
-            <p>Revenue: <strong>৳ {salesReport.revenue}</strong></p>
-            <h3 className="font-semibold mt-2">Top Selling Items:</h3>
-            <ul className="list-disc ml-5">
-              {salesReport.topSelling.map((item) => (
-                <li key={item.name}>{item.name} x {item.qty}</li>
-              ))}
-            </ul>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <button
+              onClick={() => setIsLoggedIn(false)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+            >
+              Logout
+            </button>
           </div>
-        )}
+
+          <div className="space-y-8">
+            {/* Menu Management Section */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Menu Management</h2>
+                
+                {/* Menu Form */}
+                <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      placeholder="Item Name"
+                      className="border border-gray-300 rounded-md px-3 py-2"
+                      required
+                    />
+                    <input
+                      type="number"
+                      name="price"
+                      value={form.price}
+                      onChange={handleChange}
+                      placeholder="Price"
+                      className="border border-gray-300 rounded-md px-3 py-2"
+                      required
+                    />
+                    <select
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                      className="border border-gray-300 rounded-md px-3 py-2"
+                    >
+                      <option value="Breakfast">Breakfast</option>
+                      <option value="Lunch">Lunch</option>
+                      <option value="Drinks">Drinks</option>
+                      <option value="Snacks">Snacks</option>
+                    </select>
+                    <input
+                      type="number"
+                      name="stock"
+                      value={form.stock}
+                      onChange={handleChange}
+                      placeholder="Stock (-1 for unlimited)"
+                      className="border border-gray-300 rounded-md px-3 py-2"
+                    />
+                  </div>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    placeholder="Description"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    rows="3"
+                  />
+                  <input
+                    type="url"
+                    name="imageUrl"
+                    value={form.imageUrl}
+                    onChange={handleChange}
+                    placeholder="Image URL"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="isSpecial"
+                        checked={form.isSpecial}
+                        onChange={handleChange}
+                        className="mr-2"
+                      />
+                      Daily Special
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="isOutOfStock"
+                        checked={form.isOutOfStock}
+                        onChange={handleChange}
+                        className="mr-2"
+                      />
+                      Out of Stock
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                  >
+                    {editingItem ? "Update Item" : "Add Item"}
+                  </button>
+                  {editingItem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingItem(null);
+                        setForm({
+                          name: "",
+                          description: "",
+                          price: "",
+                          category: "Breakfast",
+                          imageUrl: "",
+                          stock: -1,
+                          isOutOfStock: false,
+                          isSpecial: false,
+                        });
+                      }}
+                      className="ml-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </form>
+
+                {/* Menu Items Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Special</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Out of Stock</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {menuItems.map((item) => (
+                        <tr key={item._id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">৳{item.price}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.category}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.stock === -1 ? "Unlimited" : item.stock}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.isSpecial ? "Yes" : "No"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.isOutOfStock ? "Yes" : "No"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item._id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => toggleDailySpecial(item)}
+                              className="text-green-600 hover:text-green-900"
+                            >
+                              Toggle Special
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Orders Section */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Active Orders</h2>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {activeOrders.map((order) => (
+                        <tr key={order._id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            #{order._id.slice(-6)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customerName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {order.items.map(it => `${it.name} x${it.qty}`).join(", ")}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">৳{order.total}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.status}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-1">
+                            {["Pending", "Preparing", "Ready"].includes(order.status) && (
+                              <>
+                                {order.status !== "Preparing" && (
+                                  <button
+                                    onClick={() => updateOrderStatus(order._id, "Preparing")}
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-2 py-1 rounded text-xs"
+                                  >
+                                    Preparing
+                                  </button>
+                                )}
+                                {order.status !== "Ready" && (
+                                  <button
+                                    onClick={() => updateOrderStatus(order._id, "Ready")}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
+                                  >
+                                    Ready
+                                  </button>
+                                )}
+                                {order.status !== "Collected" && (
+                                  <button
+                                    onClick={() => updateOrderStatus(order._id, "Collected")}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                                  >
+                                    Collected
+                                  </button>
+                                )}
+                                {order.status !== "Cancelled" && (
+                                  <button
+                                    onClick={() => updateOrderStatus(order._id, "Cancelled")}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Reports Section */}
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+              {/* Daily Report */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Daily Report</h2>
+                  {dailyReport && (
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-blue-900">Total Orders:</p>
+                        <p className="text-2xl font-bold text-blue-600">{dailyReport.totalOrders}</p>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-green-900">Revenue:</p>
+                        <p className="text-2xl font-bold text-green-600">৳{dailyReport.revenue}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900 mb-2">Top Selling Items:</h3>
+                        <ul className="space-y-1">
+                          {dailyReport.topSelling.map((item, index) => (
+                            <li key={index} className="text-sm text-gray-600">
+                              {item.name}: {item.qty} sold
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sales Report */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Custom Sales Report</h2>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        type="date"
+                        name="start"
+                        value={salesRange.start}
+                        onChange={handleSalesRangeChange}
+                        className="border border-gray-300 rounded-md px-3 py-2"
+                      />
+                      <input
+                        type="date"
+                        name="end"
+                        value={salesRange.end}
+                        onChange={handleSalesRangeChange}
+                        className="border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <button
+                      onClick={fetchSalesReport}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+                    >
+                      Generate Report
+                    </button>
+                    {salesReport && (
+                      <div className="space-y-4">
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-sm font-medium text-blue-900">Total Orders:</p>
+                          <p className="text-2xl font-bold text-blue-600">{salesReport.totalOrders}</p>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <p className="text-sm font-medium text-green-900">Revenue:</p>
+                          <p className="text-2xl font-bold text-green-600">৳{salesReport.revenue}</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900 mb-2">Top Selling Items:</h3>
+                          <ul className="space-y-1">
+                            {salesReport.topSelling.map((item, index) => (
+                              <li key={index} className="text-sm text-gray-600">
+                                {item.name}: {item.qty} sold
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -12,14 +12,13 @@ mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => {
-    console.log("✅ MongoDB connected successfully");
-
-    app.listen(PORT, () => {
-      console.log(`🚀 API running at http://localhost:${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1); // exit on connection failure
+.then(() => {
+  console.log("✅ MongoDB connected successfully");
+  app.listen(PORT, () => {
+    console.log(`🚀 API running at http://localhost:${PORT}`);
   });
+})
+.catch((err) => {
+  console.error("❌ MongoDB connection error:", err.message);
+  process.exit(1); // exit on connection failure
+});

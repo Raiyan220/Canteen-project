@@ -1,13 +1,13 @@
-// frontend/src/pages/OrderHistory.jsx (UPDATED)
+// frontend/src/pages/OrderHistory.jsx (COMPLETE FILE)
 import { useEffect, useState } from 'react';
 import { api } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 
 function Star({ filled, onClick }) {
   return (
-    <button 
-      className={"text-xl " + (filled ? "text-yellow-500" : "text-gray-300")} 
+    <button
       onClick={onClick}
+      className={`text-2xl ${filled ? 'text-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
     >
       ★
     </button>
@@ -20,14 +20,12 @@ export default function OrderHistory() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
-
-  const { user, isAuthenticated } = useAuth(); // Get auth context
+  const { user, isAuthenticated } = useAuth();
 
   // Fetch orders based on authentication status
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      
       if (isAuthenticated) {
         // Fetch by authenticated user (userId will be used automatically)
         const response = await api.get('/api/orders');
@@ -36,12 +34,10 @@ export default function OrderHistory() {
         // Fetch by customerName for guest users
         const customerName = localStorage.getItem('CUSTOMER_NAME') || 'Guest';
         if (customerName && customerName !== 'Guest') {
-          const response = await api.get('/api/orders', { 
-            params: { customerName } 
-          });
+          const response = await api.get('/api/orders', { params: { customerName } });
           setOrders(response.data);
         } else {
-          setOrders([]); // No orders for guest without name
+          setOrders([]);
         }
       }
     } catch (error) {
@@ -54,7 +50,7 @@ export default function OrderHistory() {
 
   useEffect(() => {
     fetchOrders();
-  }, [isAuthenticated, user]); // Re-fetch when auth status changes
+  }, [isAuthenticated, user]);
 
   const reorder = (order) => {
     const cartItems = order.items.map(i => ({
@@ -70,7 +66,7 @@ export default function OrderHistory() {
   const cancel = async (order) => {
     try {
       await api.patch(`/api/orders/${order._id}/cancel`);
-      fetchOrders(); // Refresh the orders list
+      fetchOrders();
     } catch (error) {
       console.error('Error cancelling order:', error);
       alert('Failed to cancel order');
@@ -79,11 +75,11 @@ export default function OrderHistory() {
 
   const submitFeedback = () => {
     const fb = JSON.parse(localStorage.getItem('FEEDBACKS') || '[]');
-    fb.push({ 
-      orderId: selectedOrder?._id, 
-      rating, 
-      comment, 
-      createdAt: new Date().toISOString() 
+    fb.push({
+      orderId: selectedOrder?._id,
+      rating,
+      comment,
+      createdAt: new Date().toISOString()
     });
     localStorage.setItem('FEEDBACKS', JSON.stringify(fb));
     setRating(0);
@@ -94,118 +90,166 @@ export default function OrderHistory() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow p-4">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-32 mb-4"></div>
-          <div className="space-y-3">
-            <div className="h-16 bg-gray-200 rounded"></div>
-            <div className="h-16 bg-gray-200 rounded"></div>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-lg">Your Orders</h2>
-        {isAuthenticated && (
-          <span className="text-sm text-gray-600">
-            Logged in as: {user?.username}
-          </span>
-        )}
-      </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Order History</h1>
 
-      {orders.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <p>No orders found</p>
-          {!isAuthenticated && (
-            <p className="text-sm mt-2">
-              Sign in to view your order history across devices
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {orders.map(o => (
-            <div key={o._id} className="border rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">#{o._id.slice(-6)} • {o.status}</div>
-                  <div className="text-sm text-gray-600">
-                    {new Date(o.createdAt).toLocaleString()}
-                  </div>
-                  <div className="text-sm">
-                    {o.items.map(i => i.name + '×' + i.qty).join(', ')}
-                  </div>
-                  <div className="text-sm font-medium">Total: ৳{o.total}</div>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <button 
-                    onClick={() => reorder(o)} 
-                    className="px-3 py-1 border border-blue-500 text-blue-500 rounded-lg hover:bg-blue-50 text-sm"
-                  >
-                    Reorder
-                  </button>
-                  {o.status === 'Pending' && (
-                    <button 
-                      onClick={() => cancel(o)} 
-                      className="px-3 py-1 border border-red-500 text-red-500 rounded-lg hover:bg-red-50 text-sm"
-                    >
-                      Cancel
-                    </button>
+            {orders.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 text-6xl mb-4">📋</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+                <p className="text-gray-500 mb-4">
+                  {!isAuthenticated && (
+                    <span>Sign in to view your order history across devices</span>
                   )}
-                  <button 
-                    onClick={() => setSelectedOrder(o)} 
-                    className="px-3 py-1 border border-green-500 text-green-500 rounded-lg hover:bg-green-50 text-sm"
-                  >
-                    Rate
-                  </button>
+                </p>
+                <button
+                  onClick={() => window.location.href = '/'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                >
+                  Start Ordering
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order._id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">
+                          Order #{order._id.slice(-6)}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(order.placedAt || order.createdAt).toLocaleDateString()} at{' '}
+                          {new Date(order.placedAt || order.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-medium text-gray-900">৳{order.total}</p>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            order.status === 'Pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : order.status === 'Preparing'
+                              ? 'bg-blue-100 text-blue-800'
+                              : order.status === 'Ready'
+                              ? 'bg-green-100 text-green-800'
+                              : order.status === 'Collected'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Items:</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {order.items.map((item, index) => (
+                          <li key={index} className="flex justify-between">
+                            <span>{item.name} × {item.qty}</span>
+                            <span>৳{item.price * item.qty}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => reorder(order)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Reorder
+                        </button>
+                        {order.status === 'Pending' && (
+                          <button
+                            onClick={() => cancel(order)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        {order.status === 'Collected' && (
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                          >
+                            Rate Order
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Feedback Modal */}
+        {selectedOrder && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Rate Order #{selectedOrder._id.slice(-6)}
+              </h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rating:</label>
+                <div className="flex space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      filled={star <= rating}
+                      onClick={() => setRating(star)}
+                    />
+                  ))}
                 </div>
               </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Comments:</label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Tell us about your experience..."
+                />
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={submitFeedback}
+                  disabled={rating === 0}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-4 py-2 rounded-md"
+                >
+                  Submit
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedOrder(null);
+                    setRating(0);
+                    setComment('');
+                  }}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {selectedOrder && (
-        <div className="mt-4 border rounded-xl p-3 bg-gray-50">
-          <h3 className="font-semibold mb-2">
-            Rate Order #{selectedOrder._id.slice(-6)}
-          </h3>
-          <div className="flex items-center gap-1 mb-2">
-            {[1,2,3,4,5].map(n => (
-              <Star 
-                key={n} 
-                filled={n <= rating} 
-                onClick={() => setRating(n)} 
-              />
-            ))}
           </div>
-          <textarea 
-            value={comment} 
-            onChange={e => setComment(e.target.value)} 
-            className="w-full border rounded-xl px-3 py-2 mb-2" 
-            placeholder="Comments (optional)" 
-            rows={3}
-          />
-          <div className="flex gap-2">
-            <button 
-              onClick={submitFeedback} 
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-            >
-              Submit
-            </button>
-            <button 
-              onClick={() => setSelectedOrder(null)} 
-              className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

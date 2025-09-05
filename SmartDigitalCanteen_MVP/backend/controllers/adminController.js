@@ -31,8 +31,8 @@ export async function updateOrderStatus(req, res) {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const validStatuses = ["Pending", "Preparing", "Ready", "Collected", "Cancelled"];
 
+    const validStatuses = ["Pending", "Preparing", "Ready", "Collected", "Cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
@@ -45,7 +45,6 @@ export async function updateOrderStatus(req, res) {
     if (status === "Cancelled") order.cancelledAt = new Date();
 
     await order.save();
-
     res.json(order);
   } catch (err) {
     console.error("updateOrderStatus error:", err);
@@ -79,6 +78,7 @@ export async function reportDaily(req, res) {
         counts.set(it.name, (counts.get(it.name) || 0) + it.qty);
       });
     });
+
     const topSelling = [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -103,14 +103,12 @@ export async function reportDaily(req, res) {
 export async function reportSales(req, res) {
   try {
     const { start, end } = req.query;
-
     if (!start || !end) {
       return res.status(400).json({ error: "Start and end dates are required" });
     }
 
     const startDate = new Date(start);
     startDate.setHours(0, 0, 0, 0);
-
     const endDate = new Date(end);
     endDate.setHours(23, 59, 59, 999);
 
@@ -129,6 +127,7 @@ export async function reportSales(req, res) {
         counts.set(it.name, (counts.get(it.name) || 0) + it.qty);
       });
     });
+
     const topSelling = [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
