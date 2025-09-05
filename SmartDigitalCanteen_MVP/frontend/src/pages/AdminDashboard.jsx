@@ -6,7 +6,6 @@ export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [error, setError] = useState("");
 
-  // Menu management state
   const [menuItems, setMenuItems] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
   const [form, setForm] = useState({
@@ -20,22 +19,16 @@ export default function AdminDashboard() {
     isSpecial: false,
   });
 
-  // Active orders state
   const [activeOrders, setActiveOrders] = useState([]);
-
-  // Daily report state
   const [dailyReport, setDailyReport] = useState(null);
-
-  // Sales report state
   const [salesReport, setSalesReport] = useState(null);
   const [salesRange, setSalesRange] = useState({ start: "", end: "" });
 
   const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "12345";
 
-  /** LOGIN */
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+    if (password.trim() === ADMIN_PASSWORD) {
       setIsLoggedIn(true);
       setError("");
       fetchMenuItems();
@@ -46,7 +39,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /** MENU MANAGEMENT */
   const fetchMenuItems = async () => {
     try {
       const res = await api.get("/api/menu", adminHeaders());
@@ -127,7 +119,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /** ACTIVE ORDERS MANAGEMENT */
   const fetchActiveOrders = async () => {
     try {
       const res = await api.get("/api/admin/orders", adminHeaders());
@@ -147,7 +138,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /** DAILY REPORT */
   const fetchDailyReport = async () => {
     try {
       const res = await api.get("/api/admin/report/daily", adminHeaders());
@@ -157,7 +147,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /** SALES REPORT */
   const fetchSalesReport = async () => {
     try {
       if (!salesRange.start || !salesRange.end) {
@@ -177,7 +166,6 @@ export default function AdminDashboard() {
     setSalesRange((prev) => ({ ...prev, [name]: value }));
   };
 
-  /** LOGIN SCREEN */
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -227,12 +215,10 @@ export default function AdminDashboard() {
           </div>
 
           <div className="space-y-8">
-            {/* Menu Management Section */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Menu Management</h2>
                 
-                {/* Menu Form */}
                 <form onSubmit={handleSubmit} className="space-y-4 mb-6">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <input
@@ -340,7 +326,6 @@ export default function AdminDashboard() {
                   )}
                 </form>
 
-                {/* Menu Items Table */}
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -397,7 +382,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Active Orders Section */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Active Orders</h2>
@@ -426,41 +410,51 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">৳{order.total}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.status}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-1">
-                            {["Pending", "Preparing", "Ready"].includes(order.status) && (
+                            {order.status === "Pending" && (
                               <>
-                                {order.status !== "Preparing" && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order._id, "Preparing")}
-                                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-2 py-1 rounded text-xs"
-                                  >
-                                    Preparing
-                                  </button>
-                                )}
-                                {order.status !== "Ready" && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order._id, "Ready")}
-                                    className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
-                                  >
-                                    Ready
-                                  </button>
-                                )}
-                                {order.status !== "Collected" && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order._id, "Collected")}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
-                                  >
-                                    Collected
-                                  </button>
-                                )}
-                                {order.status !== "Cancelled" && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order._id, "Cancelled")}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => updateOrderStatus(order._id, "Preparing")}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                                >
+                                  Start Preparing
+                                </button>
+                                <button
+                                  onClick={() => updateOrderStatus(order._id, "Cancelled")}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
+                                >
+                                  Cancel
+                                </button>
                               </>
+                            )}
+                            
+                            {order.status === "Preparing" && (
+                              <>
+                                <button
+                                  onClick={() => updateOrderStatus(order._id, "Ready")}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
+                                >
+                                  Mark Ready
+                                </button>
+                                <button
+                                  onClick={() => updateOrderStatus(order._id, "Cancelled")}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            
+                            {order.status === "Ready" && (
+                              <button
+                                onClick={() => updateOrderStatus(order._id, "Collected")}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-xs"
+                              >
+                                Mark Collected
+                              </button>
+                            )}
+                            
+                            {(order.status === "Collected" || order.status === "Cancelled") && (
+                              <span className="text-gray-500 text-xs">Complete</span>
                             )}
                           </td>
                         </tr>
@@ -471,9 +465,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Reports Section */}
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-              {/* Daily Report */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Daily Report</h2>
@@ -502,7 +494,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Sales Report */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Custom Sales Report</h2>

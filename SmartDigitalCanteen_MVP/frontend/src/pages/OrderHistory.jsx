@@ -1,4 +1,3 @@
-// frontend/src/pages/OrderHistory.jsx (COMPLETE FILE)
 import { useEffect, useState } from 'react';
 import { api } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,16 +21,13 @@ export default function OrderHistory() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const { user, isAuthenticated } = useAuth();
 
-  // Fetch orders based on authentication status
   const fetchOrders = async () => {
     try {
       setLoading(true);
       if (isAuthenticated) {
-        // Fetch by authenticated user (userId will be used automatically)
         const response = await api.get('/api/orders');
         setOrders(response.data);
       } else {
-        // Fetch by customerName for guest users
         const customerName = localStorage.getItem('CUSTOMER_NAME') || 'Guest';
         if (customerName && customerName !== 'Guest') {
           const response = await api.get('/api/orders', { params: { customerName } });
@@ -198,7 +194,6 @@ export default function OrderHistory() {
           </div>
         </div>
 
-        {/* Feedback Modal */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">

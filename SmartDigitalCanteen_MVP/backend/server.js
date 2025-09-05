@@ -2,12 +2,11 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import app from "./app.js";
 
-dotenv.config(); // load environment variables from .env
+dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/canteen_db";
 
-// Connect to MongoDB
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -20,5 +19,5 @@ mongoose.connect(MONGO_URI, {
 })
 .catch((err) => {
   console.error("❌ MongoDB connection error:", err.message);
-  process.exit(1); // exit on connection failure
+  process.exit(1);
 });
