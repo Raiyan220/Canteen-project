@@ -1,9 +1,15 @@
+// frontend/src/App.jsx (UPDATED - add new routes and context)
 import { Route, Routes, Link } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext"; // NEW
 import Home from "./pages/Home.jsx";
 import OrderHistory from "./pages/OrderHistory.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import Login from "./pages/Login.jsx"; // NEW
+import Register from "./pages/Register.jsx"; // NEW
 
-export default function App() {
+function AppContent() {
+  const { user, logout, isAuthenticated } = useAuth(); // NEW
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -22,6 +28,30 @@ export default function App() {
             <Link to="/admin" className="hover:underline">
               Admin
             </Link>
+            
+            {/* NEW: Authentication links */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">
+                  Hello, {user?.username}!
+                </span>
+                <button
+                  onClick={logout}
+                  className="text-sm hover:underline text-red-600"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <Link to="/login" className="hover:underline">
+                  Login
+                </Link>
+                <Link to="/register" className="hover:underline">
+                  Register
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       </header>
@@ -32,6 +62,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/history" element={<OrderHistory />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/login" element={<Login />} /> {/* NEW */}
+          <Route path="/register" element={<Register />} /> {/* NEW */}
         </Routes>
       </main>
 
@@ -40,5 +72,13 @@ export default function App() {
         © {new Date().getFullYear()} Smart Digital Canteen
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider> {/* NEW: Wrap with AuthProvider */}
+      <AppContent />
+    </AuthProvider>
   );
 }
