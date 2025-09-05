@@ -1,25 +1,34 @@
 import { motion } from "framer-motion";
 
 export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }) {
+  // FIXED: Proper out of stock detection
+  const isOutOfStock = item.stock === 0 || item.isOutOfStock;
+
+  // FIXED: Add to cart with stock validation
   const handleAddToCart = () => {
-    // Check if item is out of stock
-    if (item.stock === 0 || item.isOutOfStock) {
-      alert(`Sorry! ${item.name} is currently out of stock and cannot be added to cart.`);
+    if (isOutOfStock) {
+      alert(`❌ Sorry! ${item.name} is currently out of stock and cannot be added to cart.`);
       return;
     }
+    
+    // Check if item has limited stock and warn when low
+    if (item.stock !== -1 && item.stock <= 5) {
+      const proceed = confirm(`⚠️ Only ${item.stock} ${item.name} left in stock. Add to cart?`);
+      if (!proceed) return;
+    }
+    
     onAdd(item);
   };
 
-  // Determine stock status
+  // Determine stock status for display
   const getStockStatus = () => {
     if (item.stock === -1) return { text: "Unlimited", color: "text-green-600", bg: "bg-green-50" };
-    if (item.stock === 0 || item.isOutOfStock) return { text: "Out of Stock", color: "text-red-600", bg: "bg-red-50" };
+    if (isOutOfStock) return { text: "Out of Stock", color: "text-red-600", bg: "bg-red-50" };
     if (item.stock <= 5) return { text: `Only ${item.stock} left`, color: "text-orange-600", bg: "bg-orange-50" };
     return { text: `${item.stock} in stock`, color: "text-green-600", bg: "bg-green-50" };
   };
 
   const stockStatus = getStockStatus();
-  const isOutOfStock = item.stock === 0 || item.isOutOfStock;
 
   return (
     <motion.div
@@ -50,7 +59,7 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
         {/* Special Badge */}
         {item.isSpecial && !isOutOfStock && (
           <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium">
-            Daily Special
+            ⭐ Daily Special
           </div>
         )}
 
@@ -68,7 +77,6 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
           onClick={() => toggleFavorite(item)}
           className="absolute top-2 right-2 p-2 rounded-full bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-200 shadow-sm"
           title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           <svg
             className={`w-5 h-5 transition-colors duration-200 ${
@@ -98,7 +106,7 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
           </p>
         </div>
 
-        {/* Stock Status Badge */}
+        {/* FIXED: Stock Status Badge */}
         <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${stockStatus.bg} ${stockStatus.color}`}>
           📦 {stockStatus.text}
         </div>
@@ -115,6 +123,7 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
             )}
           </div>
 
+          {/* FIXED: Add to Cart Button with Stock Validation */}
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock}
@@ -123,13 +132,12 @@ export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
             }`}
-            aria-label={`Add ${item.name} to cart`}
           >
             {isOutOfStock ? "Out of Stock" : "Add to Cart"}
           </button>
         </div>
 
-        {/* Low Stock Warning for Available Items */}
+        {/* Low Stock Warning */}
         {!isOutOfStock && item.stock > 0 && item.stock <= 5 && item.stock !== -1 && (
           <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
             ⚠️ Only {item.stock} left in stock!

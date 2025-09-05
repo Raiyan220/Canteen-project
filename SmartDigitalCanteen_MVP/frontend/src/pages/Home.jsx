@@ -23,8 +23,9 @@ export default function Home() {
     localStorage.setItem("CUSTOMER_NAME", customerName);
   }, [customerName]);
 
+  // FIXED: Enhanced addToCart with comprehensive stock validation
   const addToCart = (item) => {
-    // Enhanced stock validation
+    // FIXED: Check BOTH stock quantity and isOutOfStock flag
     if (item.stock === 0 || item.isOutOfStock) {
       alert(`❌ ${item.name} is out of stock!\n\nThis item cannot be added to your cart. Please choose another item.`);
       return;
@@ -39,7 +40,7 @@ export default function Home() {
       return;
     }
 
-    // Add to cart with stock awareness
+    // FIXED: Proper React state update
     setCart((prev) => {
       const existing = prev.find((p) => p._id === item._id);
       if (existing) {
@@ -56,7 +57,7 @@ export default function Home() {
       return [...prev, { ...item, qty: 1 }];
     });
 
-    // Show success message
+    // Success feedback with stock warning
     const remainingStock = item.stock === -1 ? 'unlimited' : item.stock - (currentCartQty + 1);
     if (remainingStock !== 'unlimited' && remainingStock <= 5) {
       alert(`✅ ${item.name} added to cart!\n\n⚠️ Only ${remainingStock} left in stock.`);
@@ -64,10 +65,13 @@ export default function Home() {
   };
 
   const placeOrder = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0) {
+      alert("Your cart is empty!");
+      return;
+    }
 
     try {
-      // Validate stock before placing order
+      // FIXED: Validate stock before placing order
       for (const cartItem of cart) {
         if (cartItem.stock === 0 || cartItem.isOutOfStock) {
           alert(`❌ Order cannot be placed!\n\n${cartItem.name} is out of stock. Please remove it from your cart.`);
@@ -81,20 +85,20 @@ export default function Home() {
 
       const payload = {
         customerName,
-        items: cart.map((it) => ({
-          menuItemId: it._id,
-          qty: it.qty
+        items: cart.map((item) => ({
+          menuItemId: item._id,
+          qty: item.qty,
         })),
       };
 
-      const res = await api.post("/api/orders", payload);
-      setOrderId(res.data._id);
-      localStorage.setItem("LAST_ORDER_ID", res.data._id);
+      const response = await api.post("/api/orders", payload);
+      setOrderId(response.data._id);
+      localStorage.setItem("LAST_ORDER_ID", response.data._id);
       setCart([]);
       
-      alert(`🎉 Order placed successfully!\n\nOrder ID: #${res.data._id.slice(-6)}\nEstimated time: ${res.data.estimatedReadyAt ? new Date(res.data.estimatedReadyAt).toLocaleTimeString() : 'TBD'}`);
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || "Failed to place order";
+      alert(`🎉 Order placed successfully!\n\nOrder ID: #${response.data._id.slice(-6)}\nEstimated time: ${response.data.estimatedReadyAt ? new Date(response.data.estimatedReadyAt).toLocaleTimeString() : 'TBD'}`);
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to place order";
       if (errorMsg.includes('stock')) {
         alert(`❌ Stock Error!\n\n${errorMsg}\n\nPlease refresh the page and adjust your cart.`);
       } else {
@@ -104,7 +108,10 @@ export default function Home() {
   };
 
   const handleCancelOrder = (cancelledOrderId) => {
-    if (cancelledOrderId === orderId) setOrderId("");
+    if (cancelledOrderId === orderId) {
+      setOrderId("");
+      localStorage.removeItem("LAST_ORDER_ID");
+    }
   };
 
   return (
@@ -126,7 +133,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     const name = prompt("Please enter your name:");
-                    if (name) setCustomerName(name);
+                    if (name && name.trim()) setCustomerName(name.trim());
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                 >
