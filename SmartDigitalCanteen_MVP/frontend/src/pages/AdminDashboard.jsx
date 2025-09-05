@@ -119,6 +119,21 @@ export default function AdminDashboard() {
     }
   };
 
+  // NEW: Toggle Out of Stock Status
+  const toggleOutOfStock = async (item) => {
+    try {
+      const updated = { ...item, isOutOfStock: !item.isOutOfStock };
+      const res = await api.put(`/api/admin/menu/${item._id}`, updated, adminHeaders());
+      setMenuItems(menuItems.map((i) => (i._id === item._id ? res.data : i)));
+      
+      const status = updated.isOutOfStock ? "OUT OF STOCK" : "BACK IN STOCK";
+      alert(`✅ ${item.name} marked as ${status}`);
+    } catch (err) {
+      console.error(err);
+      alert("Error updating stock status");
+    }
+  };
+
   const fetchActiveOrders = async () => {
     try {
       const res = await api.get("/api/admin/orders", adminHeaders());
@@ -215,10 +230,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="space-y-8">
+            {/* Menu Management Section */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Menu Management</h2>
                 
+                {/* Menu Form */}
                 <form onSubmit={handleSubmit} className="space-y-4 mb-6">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <input
@@ -275,7 +292,7 @@ export default function AdminDashboard() {
                     placeholder="Image URL"
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   />
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-6">
                     <label className="flex items-center">
                       <input
                         type="checkbox"
@@ -294,7 +311,7 @@ export default function AdminDashboard() {
                         onChange={handleChange}
                         className="mr-2"
                       />
-                      Out of Stock
+                      <span className="text-red-600 font-medium">Mark as Out of Stock</span>
                     </label>
                   </div>
                   <button
@@ -326,6 +343,7 @@ export default function AdminDashboard() {
                   )}
                 </form>
 
+                {/* Menu Items Table */}
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -333,26 +351,40 @@ export default function AdminDashboard() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Special</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Out of Stock</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {menuItems.map((item) => (
-                        <tr key={item._id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">৳{item.price}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.category}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.stock === -1 ? "Unlimited" : item.stock}
+                        <tr key={item._id} className={item.isOutOfStock ? 'bg-red-50' : ''}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.name}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.isSpecial ? "Yes" : "No"}
+                            ৳{item.price}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.isOutOfStock ? "Yes" : "No"}
+                            {item.category}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {item.isOutOfStock || item.stock === 0 ? (
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                ❌ Out of Stock
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                ✅ In Stock ({item.stock === -1 ? '∞' : item.stock})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              item.isSpecial ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {item.isSpecial ? "Special" : "Regular"}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                             <button
@@ -373,6 +405,18 @@ export default function AdminDashboard() {
                             >
                               Toggle Special
                             </button>
+                            {/* NEW: Stock Toggle Button */}
+                            <button
+                              onClick={() => toggleOutOfStock(item)}
+                              className={`font-medium ${
+                                item.isOutOfStock 
+                                  ? 'text-green-600 hover:text-green-900' 
+                                  : 'text-red-600 hover:text-red-900'
+                              }`}
+                              title={item.isOutOfStock ? 'Mark as Available' : 'Mark as Out of Stock'}
+                            >
+                              {item.isOutOfStock ? '✅ Stock In' : '❌ Stock Out'}
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -382,6 +426,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Active Orders Section */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Active Orders</h2>
@@ -465,7 +510,9 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Reports Section */}
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+              {/* Daily Report */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Daily Report</h2>
@@ -494,6 +541,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Sales Report */}
               <div className="bg-white shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Custom Sales Report</h2>
