@@ -1,10 +1,9 @@
 import axios from "axios";
 
-const envUrl = import.meta.env.VITE_API_URL || "";
-const baseURL =
-  import.meta.env.PROD && envUrl.includes("localhost")
-    ? ""
-    : envUrl || (import.meta.env.DEV ? "http://localhost:5000" : "");
+// In production: always use same-origin (empty string = relative URLs like /api/menu)
+// In dev:        proxy to local backend at port 5000
+// Never bake localhost into production bundle.
+const baseURL = import.meta.env.PROD ? "" : (import.meta.env.VITE_API_URL || "http://localhost:5000");
 
 export const api = axios.create({
   baseURL,
