@@ -12,6 +12,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import guestRoutes from './routes/guestRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
+import fallbackRouter from './utils/fallbackStore.js';
 
 dotenv.config();
 
@@ -23,6 +24,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'Server is running',
+    mode: mongoose.connection.readyState === 1 ? 'mongodb' : 'embedded-store',
+  });
+});
+
+// Use embedded persistent store automatically when external MongoDB is not connected
+app.use('/api', (req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+  return fallbackRouter(req, res, next);
+});
+
 // API routes
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
@@ -30,13 +46,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/guest', guestRoutes);
 app.use('/api/feedback', feedbackRoutes);
-
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'Server is running',
-    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-  });
-});
 
 // Serve built Vite frontend in production when dist/ exists
 const distPath = path.resolve(__dirname, '../frontend/dist');
