@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: crimsonbite-smart-canteen
+    runtime: node
+    rootDir: SmartDigitalCanteen_MVP
+    plan: free
+    buildCommand: npm --prefix backend install && npm --prefix frontend install --include=dev && npm --prefix frontend run build
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

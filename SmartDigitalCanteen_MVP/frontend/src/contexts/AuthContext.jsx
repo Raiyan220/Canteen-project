@@ -73,6 +73,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setSession = (sessionUser, token) => {
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    if (sessionUser) {
+      setUser(sessionUser);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('auth_token');
     delete api.defaults.headers.common['Authorization'];
@@ -88,6 +98,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    setSession,
     isAdmin,
     isSuperAdmin,
     isAuthenticated: !!user

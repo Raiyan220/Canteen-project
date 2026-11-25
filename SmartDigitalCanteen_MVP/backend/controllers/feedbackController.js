@@ -3,7 +3,16 @@ import Feedback from "../models/Feedback.js";
 export async function createFeedback(req, res) {
   try {
     const { orderId, rating, comment = "" } = req.body;
-    if (!orderId || !rating) return res.status(400).json({ error: "orderId and rating are required" });
+    if (!orderId || !rating) {
+      return res.status(400).json({ error: "orderId and rating are required" });
+    }
+    const existing = await Feedback.findOne({ orderId });
+    if (existing) {
+      existing.rating = rating;
+      existing.comment = comment;
+      await existing.save();
+      return res.json(existing);
+    }
     const fb = await Feedback.create({ orderId, rating, comment });
     res.status(201).json(fb);
   } catch (err) {

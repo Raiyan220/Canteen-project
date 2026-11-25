@@ -1,175 +1,162 @@
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useAuth } from "../contexts/AuthContext";
-import guestManager from "../utils/GuestManager";
 
-export default function MenuItemCard({ item, onAdd, isFavorite, toggleFavorite }) {
-  const { isAuthenticated } = useAuth();
-  const isOutOfStock = item.stock === 0 || item.isOutOfStock;
-
-  const handleAddToCart = () => {
-    if (isOutOfStock) {
-      alert(`❌ Sorry! ${item.name} is currently out of stock and cannot be added to cart.`);
-      return;
-    }
-    
-    if (item.stock !== -1 && item.stock <= 5) {
-      const proceed = confirm(`⚠️ Only ${item.stock} ${item.name} left in stock. Add to cart?`);
-      if (!proceed) return;
-    }
-    
-    onAdd(item);
-  };
-
-  // Enhanced favorite toggle with guest support
-  const handleToggleFavorite = () => {
-    toggleFavorite(item);
-    
-    // Update guest preferences if not authenticated
-    if (!isAuthenticated) {
-      const favorites = JSON.parse(localStorage.getItem('FAVORITES') || '[]');
-      guestManager.updatePreferences({ favorites });
-      
-      // Show upgrade hint after 3 favorites
-      if (favorites.length >= 3) {
-        setTimeout(() => {
-          const shouldCreate = confirm(
-            `💝 You have ${favorites.length} favorite items!\n\n` +
-            'Create an account to save them across all your devices?\n\n' +
-            '✅ Access favorites from any device\n' +
-            '✅ Never lose your preferences\n' +
-            '✅ Get notified of special deals on favorites'
-          );
-          
-          if (shouldCreate) {
-            guestManager.showUpgradeModal();
-          }
-        }, 1000);
-      }
-    }
-  };
-
-  const getStockStatus = () => {
-    if (item.stock === -1) return { text: "Unlimited", color: "text-green-600", bg: "bg-green-50" };
-    if (isOutOfStock) return { text: "Out of Stock", color: "text-red-600", bg: "bg-red-50" };
-    if (item.stock <= 5) return { text: `Only ${item.stock} left`, color: "text-orange-600", bg: "bg-orange-50" };
-    return { text: `${item.stock} in stock`, color: "text-green-600", bg: "bg-green-50" };
-  };
-
-  const stockStatus = getStockStatus();
+export default function MenuItemCard({
+  item,
+  cartQty = 0,
+  onAdd,
+  onInc,
+  onDec,
+  isFavorite = false,
+  onToggleFavorite,
+}) {
+  const [imgSrc, setImgSrc] = useState(item.imageUrl || "/images/placeholder.svg");
+  const stockVal = Number(item.stock ?? -1);
+  const isUnlimited = stockVal < 0;
+  const isOut = Boolean(item.isOutOfStock) || (!isUnlimited && stockVal === 0);
+  const lowStock = !isOut && !isUnlimited && stockVal <= 5;
+  const atStockLimit = !isUnlimited && cartQty >= stockVal;
 
   return (
-    <motion.div
+    <motion.article
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ y: -2 }}
-      className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group ${
-        isOutOfStock ? 'opacity-75' : ''
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22 }}
+      className={`group flex flex-col overflow-hidden rounded-2xl border bg-surface-card transition-all ${
+        isOut
+          ? "border-line opacity-75"
+          : "border-line hover:border-crimson-500/60 hover:shadow-card"
       }`}
     >
-      {/* Image Container */}
-      <div className="relative h-48 bg-gray-100 flex items-center justify-center">
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-              isOutOfStock ? 'grayscale' : ''
+      {/* Visual container */}
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-elevated p-4 flex items-center justify-center">
+        <img
+          src={imgSrc}
+          alt={item.name}
+          onError={() => setImgSrc("/images/placeholder.svg")}
+          className={`h-full w-full object-contain transition-transform duration-300 ${
+            isOut ? "grayscale" : "group-hover:scale-105"
+          }`}
+          loading="lazy"
+        />
+
+        {/* Top badges */}
+        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+          {item.isSpecial && (
+            <span className="rounded-full bg-crimson-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+              Chef Special
+            </span>
+          )}
+          <span className="rounded-full border border-line bg-surface-card/90 px-2.5 py-0.5 text-[11px] font-semibold text-ink-secondary backdrop-blur-sm">
+            {item.category || "Menu"}
+          </span>
+        </div>
+
+        {/* Favorite button */}
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={() => onToggleFavorite(item)}
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? `Remove ${item.name} from favorites` : `Save ${item.name} to favorites`}
+            className={`absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-sm transition ${
+              isFavorite
+                ? "border-crimson-600 bg-crimson-600 text-white shadow-sm"
+                : "border-line bg-surface-card/90 text-ink-muted hover:border-crimson-500 hover:text-crimson-600"
             }`}
-            loading="lazy"
-          />
-        ) : (
-          <div className={`text-4xl ${isOutOfStock ? 'grayscale' : 'text-gray-400'}`}>🍽️</div>
-        )}
-        
-        {/* Special Badge */}
-        {item.isSpecial && !isOutOfStock && (
-          <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium">
-            ⭐ Daily Special
-          </div>
+          >
+            <span aria-hidden="true" className="text-sm leading-none">
+              {isFavorite ? "♥" : "♡"}
+            </span>
+          </button>
         )}
 
-        {/* Out of Stock Overlay */}
-        {isOutOfStock && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-              Out of Stock
+        {/* Sold out overlay */}
+        {isOut && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[1px]">
+            <span className="rounded-full bg-crimson-900 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white border border-crimson-400/40">
+              Sold Out
             </span>
           </div>
         )}
-        
-        {/* Enhanced Favorite Button */}
-        <button
-          onClick={handleToggleFavorite}
-          className="absolute top-2 right-2 p-2 rounded-full bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-200 shadow-sm"
-          title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <svg
-            className={`w-5 h-5 transition-colors duration-200 ${
-              isFavorite ? "text-red-500 fill-current" : "text-gray-400"
-            }`}
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        <div className="space-y-1">
-          <h3 className="font-bold text-lg text-gray-900 line-clamp-1">
+      {/* Card body */}
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-base font-bold text-ink-primary leading-snug line-clamp-1">
             {item.name}
           </h3>
-          <p className="text-gray-600 text-sm line-clamp-2 min-h-10">
-            {item.description || "Delicious and fresh"}
-          </p>
+          <span className="shrink-0 font-mono text-base font-extrabold text-crimson-600 tabular-nums">
+            ৳{Number(item.price || 0).toFixed(0)}
+          </span>
         </div>
 
-        {/* Stock Status Badge */}
-        <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${stockStatus.bg} ${stockStatus.color}`}>
-          📦 {stockStatus.text}
+        <p className="mt-1.5 text-xs leading-relaxed text-ink-muted line-clamp-2 flex-1">
+          {item.description || "Prepared fresh in our campus kitchen."}
+        </p>
+
+        {/* Meta strip */}
+        <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-ink-muted border-t border-line pt-2.5">
+          <span className="inline-flex items-center gap-1 font-mono">
+            <span aria-hidden="true">⏱</span> ~{item.prepTimeMinutes || 5} min
+          </span>
+          {isOut ? (
+            <span className="font-semibold text-crimson-600">Unavailable</span>
+          ) : isUnlimited ? (
+            <span className="font-semibold text-emerald-600">Made to order</span>
+          ) : lowStock ? (
+            <span className="font-semibold text-amber-600">Only {stockVal} left</span>
+          ) : (
+            <span>In stock ({stockVal})</span>
+          )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className={`text-xl font-bold ${isOutOfStock ? 'text-gray-400' : 'text-blue-600'}`}>
-              ৳{item.price}
-            </p>
-            {item.prepTimeMinutes && (
-              <p className="text-xs text-gray-500">
-                ~{item.prepTimeMinutes} min
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-              isOutOfStock
-                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
-            }`}
-          >
-            {isOutOfStock ? "Out of Stock" : "Add to Cart"}
-          </button>
+        {/* Action controls */}
+        <div className="mt-3">
+          {isOut ? (
+            <button
+              type="button"
+              disabled
+              className="w-full rounded-xl border border-line bg-surface-subtle py-2.5 text-xs font-bold text-ink-muted cursor-not-allowed"
+            >
+              Currently Unavailable
+            </button>
+          ) : cartQty > 0 ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-crimson-600/40 bg-crimson-600/10 p-1">
+              <button
+                type="button"
+                onClick={() => onDec(item._id)}
+                aria-label={`Decrease quantity of ${item.name}`}
+                className="flex h-9 w-10 items-center justify-center rounded-lg bg-surface-card text-base font-bold text-ink-primary shadow-sm hover:bg-crimson-600 hover:text-white transition"
+              >
+                −
+              </button>
+              <span className="font-mono text-sm font-bold text-crimson-700 dark:text-crimson-300 tabular-nums">
+                {cartQty} in tray
+              </span>
+              <button
+                type="button"
+                onClick={() => onInc(item._id)}
+                disabled={atStockLimit}
+                aria-label={`Increase quantity of ${item.name}`}
+                className="flex h-9 w-10 items-center justify-center rounded-lg bg-crimson-600 text-base font-bold text-white shadow-sm hover:bg-crimson-700 disabled:opacity-40 transition"
+              >
+                +
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAdd(item)}
+              className="w-full rounded-xl bg-crimson-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-crimson-700 active:scale-[0.99] transition"
+            >
+              Add to Tray
+            </button>
+          )}
         </div>
-
-        {/* Low Stock Warning */}
-        {!isOutOfStock && item.stock > 0 && item.stock <= 5 && item.stock !== -1 && (
-          <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
-            ⚠️ Only {item.stock} left in stock!
-          </div>
-        )}
       </div>
-    </motion.div>
+    </motion.article>
   );
 }

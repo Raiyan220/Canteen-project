@@ -1,4 +1,3 @@
-// backend/routes/orderRoutes.js (UPDATE - add optionalAuth to the GET route)
 import { Router } from "express";
 import {
   createOrder,
@@ -13,10 +12,10 @@ import { requireAdmin, optionalAuth } from "../utils/auth.js";
 const router = Router();
 
 router.post("/", optionalAuth, createOrder);
-router.get("/:id", getOrder);
-router.get("/", optionalAuth, listOrdersByCustomer); // ← ADD optionalAuth here
-router.patch("/:id/cancel", cancelOrder);
+router.get("/", optionalAuth, listOrdersByCustomer);
 router.get("/active", requireAdmin, listActiveOrders);
+router.get("/:id", getOrder);
+router.patch("/:id/cancel", cancelOrder);
 router.patch("/:id/status", requireAdmin, updateOrderStatus);
 
 export default router;

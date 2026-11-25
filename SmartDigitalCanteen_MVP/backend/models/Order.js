@@ -1,4 +1,3 @@
-// backend/models/Order.js (ENHANCED - add one field)
 import mongoose from "mongoose";
 
 const OrderItemSchema = new mongoose.Schema({
@@ -10,9 +9,11 @@ const OrderItemSchema = new mongoose.Schema({
 
 const OrderSchema = new mongoose.Schema({
   customerName: { type: String, default: "Guest" },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // NEW OPTIONAL FIELD
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   items: [OrderItemSchema],
   total: { type: Number, required: true },
+  notes: { type: String, default: "", maxlength: 240 },
+  pickupSlot: { type: String, default: "ASAP" },
   status: { type: String, enum: ["Pending", "Preparing", "Ready", "Collected", "Cancelled"], default: "Pending" },
   placedAt: { type: Date, default: Date.now },
   estimatedReadyAt: { type: Date },

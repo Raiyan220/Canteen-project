@@ -1,436 +1,492 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { api } from "../api/api";
+import { useAuth } from "../contexts/AuthContext";
+import { useUX } from "../contexts/UXContext";
+import { guestManager } from "../utils/GuestManager";
+import Navbar from "../components/Navbar";
 
-function Star({ filled, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-2xl transition-colors duration-200 hover:scale-110 transform ${
-        filled ? 'text-yellow-400' : 'text-slate-300 hover:text-yellow-300'
-      }`}
-    >
-      ★
-    </button>
-  );
-}
+const STATUS_STYLE = {
+  Pending: "border-crimson-500/40 bg-crimson-500/10 text-crimson-600",
+  Preparing: "border-amber-500/40 bg-amber-500/10 text-amber-600",
+  Ready: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600",
+  Collected: "border-line bg-surface-subtle text-ink-secondary",
+  Cancelled: "border-line bg-surface-base text-ink-muted",
+};
 
 export default function OrderHistory() {
+  const { user, isAuthenticated } = useAuth();
+  const { notify } = useUX();
+  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('');
-  const { user, isAuthenticated } = useAuth();
+  const [lookupName, setLookupName] = useState(
+    () => guestManager.getDisplayName() || ""
+  );
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
-  // PRESERVED: All existing functions
-  const fetchOrders = async () => {
+  const [feedbackMap, setFeedbackMap] = useState({});
+  const [ratingTarget, setRatingTarget] = useState(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
+      let collected = [];
+
       if (isAuthenticated) {
-        const response = await api.get('/api/orders');
-        setOrders(response.data);
+        const { data } = await api.get("/api/orders");
+        collected = Array.isArray(data) ? data : [];
       } else {
-        const customerName = localStorage.getItem('CUSTOMER_NAME') || 'Guest';
-        if (customerName && customerName !== 'Guest') {
-          const response = await api.get('/api/orders', { 
-            params: { customerName } 
-          });
-          setOrders(response.data);
-        } else {
-          setOrders([]);
+        const guestOrders = guestManager.getOrders();
+        const byIds = await Promise.all(
+          guestOrders
+            .slice(0, 15)
+            .map((g) =>
+              api
+                .get(`/api/orders/${g.orderId}`)
+                .then((r) => r.data)
+                .catch(() => null)
+            )
+        );
+        const map = new Map();
+        byIds.filter(Boolean).forEach((o) => map.set(o._id, o));
+
+        if (lookupName.trim()) {
+          const { data } = await api.get(
+            `/api/orders?customerName=${encodeURIComponent(lookupName.trim())}`
+          );
+          (Array.isArray(data) ? data : []).forEach((o) => map.set(o._id, o));
         }
+        collected = Array.from(map.values()).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
       }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setOrders([]);
+
+      setOrders(collected);
+
+      try {
+        const { data: fbList } = await api.get("/api/feedback");
+        const nextFb = {};
+        (Array.isArray(fbList) ? fbList : []).forEach((fb) => {
+          const oid = typeof fb.orderId === "object" ? fb.orderId?._id : fb.orderId;
+          if (oid) nextFb[oid] = fb;
+        });
+        setFeedbackMap(nextFb);
+      } catch {
+        // Feedback optional
+      }
+    } catch (err) {
+      notify("Failed to load orders", {
+        type: "error",
+        description: err.response?.data?.error || "Could not reach order service.",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, lookupName, notify]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [isAuthenticated, user]);
+    loadOrders();
+  }, [loadOrders]);
 
-  const reorder = (order) => {
-    const cartItems = order.items.map(i => ({
-      _id: i.menuItemId,
-      name: i.name,
-      price: i.price,
-      qty: i.qty
-    }));
-    localStorage.setItem('CART', JSON.stringify(cartItems));
-    window.location.href = '/';
-  };
+  const filteredOrders = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return orders.filter((order) => {
+      if (statusFilter === "ACTIVE") {
+        if (!["Pending", "Preparing", "Ready"].includes(order.status)) return false;
+      } else if (statusFilter !== "ALL" && order.status !== statusFilter) {
+        return false;
+      }
 
-  const cancel = async (order) => {
+      if (q) {
+        const itemText = (order.items || []).map((i) => i.name).join(" ");
+        const hay = `${order._id} ${order.customerName} ${itemText}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [orders, statusFilter, searchQuery]);
+
+  const handleCancelOrder = async (orderId) => {
+    setCancellingId(orderId);
     try {
-      const payload = isAuthenticated ? {} : { customerName: order.customerName };
-      await api.patch(`/api/orders/${order._id}/cancel`, payload);
-      fetchOrders();
-      alert('Order cancelled successfully');
-    } catch (error) {
-      console.error('Error cancelling order:', error);
-      alert('Failed to cancel order: ' + (error.response?.data?.error || error.message));
+      const { data } = await api.patch(`/api/orders/${orderId}/cancel`);
+      setOrders((prev) => prev.map((o) => (o._id === orderId ? data : o)));
+      setConfirmCancelId(null);
+      notify("Order cancelled", {
+        type: "info",
+        description: "Kitchen stock has been restored.",
+      });
+    } catch (err) {
+      notify("Unable to cancel", {
+        type: "error",
+        description: err.response?.data?.error || "Order is already being prepared.",
+      });
+    } finally {
+      setCancellingId(null);
     }
   };
 
-  const submitFeedback = () => {
-    const fb = JSON.parse(localStorage.getItem('FEEDBACKS') || '[]');
-    fb.push({
-      orderId: selectedOrder?._id,
-      rating,
-      comment,
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('FEEDBACKS', JSON.stringify(fb));
-    setRating(0);
-    setComment('');
-    setSelectedOrder(null);
-    alert('Thanks for your feedback!');
+  const openFeedbackForm = (order) => {
+    const existing = feedbackMap[order._id];
+    setRatingTarget(order._id);
+    setRatingValue(existing?.rating || 5);
+    setRatingComment(existing?.comment || "");
   };
 
-  // Filter orders based on status
-  const filteredOrders = filterStatus 
-    ? orders.filter(order => order.status === filterStatus)
-    : orders;
+  const handleSubmitFeedback = async (e, orderId) => {
+    e.preventDefault();
+    setSubmittingFeedback(true);
+    try {
+      const { data } = await api.post("/api/feedback", {
+        orderId,
+        rating: ratingValue,
+        comment: ratingComment.trim(),
+      });
+      setFeedbackMap((prev) => ({ ...prev, [orderId]: data }));
+      setRatingTarget(null);
+      notify("Thank you for your feedback!", {
+        type: "success",
+        description: `Saved ${ratingValue}/5 rating.`,
+      });
+    } catch (err) {
+      notify("Could not save feedback", {
+        type: "error",
+        description: err.response?.data?.error || "Please try again.",
+      });
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Your Orders</h3>
-          <p className="text-slate-600">Please wait while we fetch your order history...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleReorder = (order) => {
+    navigate("/", { state: { reorderItems: order.items } });
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      {/* Header */}
-      <header className="bg-white shadow-lg border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <a href="/" className="flex items-center space-x-3 group">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                  <span className="text-white text-2xl">🍽️</span>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                    Smart Digital Canteen
-                  </h1>
-                  <p className="text-sm text-slate-500">Order History</p>
-                </div>
-              </a>
-            </div>
+    <div className="min-h-screen flex flex-col bg-surface-base">
+      <Navbar />
 
-            <div className="flex items-center space-x-4">
-              {isAuthenticated ? (
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">{user.username.charAt(0).toUpperCase()}</span>
-                  </div>
-                  <span className="text-slate-700 font-medium">{user.username}</span>
-                </div>
-              ) : (
-                <div className="text-slate-600">
-                  <span className="font-medium">Guest User</span>
-                </div>
-              )}
-              
-              <a
-                href="/"
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                🏠 Back to Home
-              </a>
-            </div>
+      <main
+        id="main-content"
+        className="flex-1 mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-6"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-ink-primary">
+              Order History
+            </h1>
+            <p className="mt-1 text-sm text-ink-muted">
+              {isAuthenticated
+                ? `Orders synced for ${user?.username || user?.email}.`
+                : "Recent orders on this browser or look up by pickup name."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadOrders}
+              className="rounded-xl border border-line bg-surface-card px-3.5 py-2 text-xs font-semibold text-ink-secondary hover:border-crimson-600 transition"
+            >
+              Refresh
+            </button>
+            <Link
+              to="/"
+              className="rounded-xl bg-crimson-600 px-4 py-2 text-xs font-bold text-white shadow-crimson hover:bg-crimson-700 transition"
+            >
+              + New Order
+            </Link>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white shadow-xl rounded-2xl border border-slate-200 overflow-hidden">
-          {/* Title & Filter Section */}
-          <div className="px-6 py-6 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">🛍️ Your Order History</h2>
-                <p className="text-slate-600">
-                  {isAuthenticated 
-                    ? `Track your orders and reorder favorites (${orders.length} total orders)` 
-                    : !isAuthenticated && 'Sign in to view your order history across devices'
-                  }
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                {/* Status Filter */}
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-slate-700">Filter by status:</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  >
-                    <option value="">All Orders</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Preparing">Preparing</option>
-                    <option value="Ready">Ready</option>
-                    <option value="Collected">Collected</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
-                
-                <button
-                  onClick={fetchOrders}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span>Refresh</span>
-                </button>
-              </div>
+        {/* Lookup by name for guest users */}
+        {!isAuthenticated && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              guestManager.setDisplayName(lookupName);
+              loadOrders();
+            }}
+            className="flex flex-col sm:flex-row gap-2.5 rounded-2xl border border-line bg-surface-card p-4"
+          >
+            <div className="flex-1">
+              <label htmlFor="guest-lookup-name" className="block text-xs font-bold text-ink-secondary mb-1">
+                Find Guest Orders by Pickup Name
+              </label>
+              <input
+                id="guest-lookup-name"
+                type="text"
+                value={lookupName}
+                onChange={(e) => setLookupName(e.target.value)}
+                placeholder="Enter name used at checkout"
+                className="w-full rounded-xl border border-line bg-surface-base px-3.5 py-2 text-sm text-ink-primary focus:border-crimson-600 focus:outline-none"
+              />
             </div>
+            <button
+              type="submit"
+              className="sm:self-end rounded-xl bg-crimson-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-crimson-700 transition"
+            >
+              Look Up Orders
+            </button>
+          </form>
+        )}
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Order status filters">
+            {[
+              { id: "ALL", label: "All" },
+              { id: "ACTIVE", label: "Active" },
+              { id: "Collected", label: "Collected" },
+              { id: "Cancelled", label: "Cancelled" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                  statusFilter === tab.id
+                    ? "bg-crimson-600 text-white"
+                    : "border border-line bg-surface-card text-ink-secondary hover:border-crimson-500/50"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Orders List */}
-          <div className="divide-y divide-slate-200">
-            {filteredOrders.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-6xl mb-6 text-slate-300">📋</div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">
-                  {filterStatus ? `No ${filterStatus.toLowerCase()} orders found` : 'No orders yet'}
-                </h3>
-                <p className="text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
-                  {!isAuthenticated && !localStorage.getItem('CUSTOMER_NAME') ? (
-                    'Sign in to view your order history across all your devices, or set your name to track guest orders.'
-                  ) : filterStatus ? (
-                    `You don't have any orders with status "${filterStatus}". Try selecting a different filter.`
-                  ) : (
-                    'Your order history will appear here once you place your first order.'
-                  )}
-                </p>
-                <div className="flex justify-center space-x-4">
-                  <a
-                    href="/"
-                    className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                  >
-                    Start Ordering
-                  </a>
-                  {!isAuthenticated && (
-                    <a
-                      href="/register"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                    >
-                      Create Account
-                    </a>
-                  )}
-                </div>
-              </div>
-            ) : (
-              filteredOrders.map((order) => (
-                <div key={order._id} className="p-6 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center">
-                        <span className="text-orange-600 font-bold text-lg">#</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Filter loaded orders"
+            placeholder="Filter by dish or order #..."
+            className="w-full sm:w-64 rounded-xl border border-line bg-surface-card px-3.5 py-2 text-xs text-ink-primary focus:border-crimson-600 focus:outline-none"
+          />
+        </div>
+
+        {/* Orders list */}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="h-32 rounded-2xl border border-line bg-surface-card animate-pulse"
+              />
+            ))}
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line-strong bg-surface-card p-10 text-center">
+            <p className="text-base font-bold text-ink-primary">No orders found</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Place your first order from the canteen menu to track it here.
+            </p>
+            <Link
+              to="/"
+              className="mt-4 inline-block rounded-xl bg-crimson-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-crimson-700"
+            >
+              Browse Today&apos;s Menu
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredOrders.map((order) => {
+              const total = Number(order.totalAmount ?? order.total ?? 0);
+              const existingFb = feedbackMap[order._id];
+              const editingFb = ratingTarget === order._id;
+
+              return (
+                <article
+                  key={order._id}
+                  className="rounded-2xl border border-line bg-surface-card p-5 shadow-card space-y-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-ink-primary">
+                          #{String(order._id).slice(-6).toUpperCase()}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+                            STATUS_STYLE[order.status] || STATUS_STYLE.PLACED
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                        {order.pickupSlot && (
+                          <span className="rounded-full border border-line bg-surface-base px-2.5 py-0.5 text-[11px] font-medium text-ink-muted">
+                            Pickup: {order.pickupSlot}
+                          </span>
+                        )}
                       </div>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {order.customerName} •{" "}
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleString([], {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : ""}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-mono text-lg font-extrabold text-crimson-600 tabular-nums">
+                        ৳{total.toFixed(0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Ordered items */}
+                  <div className="flex flex-wrap gap-2">
+                    {(order.items || []).map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="rounded-xl border border-line bg-surface-base px-3 py-1.5 text-xs font-medium text-ink-secondary"
+                      >
+                        <span className="font-mono font-bold text-crimson-600">
+                          {item.qty}×
+                        </span>{" "}
+                        {item.name}
+                      </span>
+                    ))}
+                  </div>
+
+                  {order.notes && (
+                    <p className="text-xs text-ink-muted">
+                      <span className="font-semibold text-ink-secondary">Kitchen note:</span>{" "}
+                      {order.notes}
+                    </p>
+                  )}
+
+                  {/* Actions row */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleReorder(order)}
+                        className="rounded-xl border border-line-strong bg-surface-elevated px-3.5 py-1.5 text-xs font-bold text-crimson-700 dark:text-crimson-300 hover:bg-crimson-600 hover:text-white transition"
+                      >
+                        Reorder
+                      </button>
+
+                      {order.status === "Collected" && (
+                        <button
+                          type="button"
+                          onClick={() => openFeedbackForm(order)}
+                          className="rounded-xl border border-line px-3.5 py-1.5 text-xs font-semibold text-ink-secondary hover:border-crimson-600 transition"
+                        >
+                          {existingFb ? `Rated ${existingFb.rating}/5 ★ (Edit)` : "Rate Meal"}
+                        </button>
+                      )}
+                    </div>
+
+                    {order.status === "Pending" && (
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-900">
-                          Order #{order._id.slice(-6)}
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-slate-500 mt-1">
-                          <span className="flex items-center space-x-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10h8V11M8 11a2 2 0 01-2-2V7a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2" />
-                            </svg>
-                            <span>{new Date(order.placedAt || order.createdAt).toLocaleDateString()}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{new Date(order.placedAt || order.createdAt).toLocaleTimeString()}</span>
-                          </span>
+                        {confirmCancelId === order._id ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-ink-primary">
+                              Cancel order?
+                            </span>
+                            <button
+                              type="button"
+                              disabled={cancellingId === order._id}
+                              onClick={() => handleCancelOrder(order._id)}
+                              className="rounded-lg bg-crimson-600 px-3 py-1.5 text-xs font-bold text-white"
+                            >
+                              {cancellingId === order._id ? "..." : "Yes, Cancel"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmCancelId(null)}
+                              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-ink-muted"
+                            >
+                              Keep
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmCancelId(order._id)}
+                            className="rounded-xl border border-crimson-600/40 px-3.5 py-1.5 text-xs font-bold text-crimson-600 hover:bg-crimson-600 hover:text-white transition"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inline Feedback Form */}
+                  {editingFb && (
+                    <form
+                      onSubmit={(e) => handleSubmitFeedback(e, order._id)}
+                      className="rounded-xl border border-line-strong bg-surface-base p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-ink-primary">
+                          How was your order?
+                        </span>
+                        <div className="flex items-center gap-1" role="group" aria-label="Star rating">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setRatingValue(star)}
+                              aria-label={`Rate ${star} out of 5`}
+                              className={`h-8 w-8 rounded-lg font-bold text-sm transition ${
+                                star <= ratingValue
+                                  ? "bg-crimson-600 text-white"
+                                  : "border border-line bg-surface-card text-ink-muted"
+                              }`}
+                            >
+                              ★
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-slate-900">৳{order.total}</div>
-                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
-                        order.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : order.status === 'Preparing'
-                          ? 'bg-blue-100 text-blue-800'
-                          : order.status === 'Ready'
-                          ? 'bg-green-100 text-green-800'
-                          : order.status === 'Collected'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Order Items */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-slate-900 mb-3">Items Ordered:</h4>
-                    <div className="bg-slate-50 rounded-xl p-4">
-                      <div className="grid gap-2">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between py-2">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                                <span className="text-slate-600 text-sm font-medium">{item.qty}</span>
-                              </div>
-                              <span className="text-slate-900 font-medium">{item.name}</span>
-                            </div>
-                            <span className="text-slate-700 font-semibold">৳{item.price * item.qty}</span>
-                          </div>
-                        ))}
+                      <textarea
+                        rows={2}
+                        value={ratingComment}
+                        onChange={(e) => setRatingComment(e.target.value)}
+                        placeholder="Share quick feedback for our kitchen..."
+                        className="w-full rounded-xl border border-line bg-surface-card px-3 py-2 text-xs text-ink-primary focus:border-crimson-600 focus:outline-none"
+                      />
+
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRatingTarget(null)}
+                          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingFeedback}
+                          className="rounded-lg bg-crimson-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-crimson-700 disabled:opacity-60"
+                        >
+                          {submittingFeedback ? "Saving..." : "Submit Rating"}
+                        </button>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => reorder(order)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>Reorder</span>
-                      </button>
-                      
-                      {['Pending', 'Preparing'].includes(order.status) && (
-                        <button
-                          onClick={() => cancel(order)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          <span>Cancel</span>
-                        </button>
-                      )}
-                      
-                      {order.status === 'Collected' && (
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                          <span>Rate Order</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Order Summary */}
-                    <div className="text-right">
-                      <div className="text-xs text-slate-500 mb-1">Total Amount</div>
-                      <div className="text-xl font-bold text-slate-900">৳{order.total}</div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+                    </form>
+                  )}
+                </article>
+              );
+            })}
           </div>
-        </div>
+        )}
       </main>
-
-      {/* Feedback Modal */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl">⭐</span>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Rate Your Experience
-              </h3>
-              <p className="text-slate-600">
-                Order #{selectedOrder._id.slice(-6)}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-3 text-center">
-                  How was your order?
-                </label>
-                <div className="flex justify-center space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      filled={star <= rating}
-                      onClick={() => setRating(star)}
-                    />
-                  ))}
-                </div>
-                {rating > 0 && (
-                  <p className="text-center text-sm text-slate-600 mt-2">
-                    {rating === 1 && "Poor - We'll do better next time"}
-                    {rating === 2 && "Fair - Room for improvement"}
-                    {rating === 3 && "Good - Satisfied with the order"}
-                    {rating === 4 && "Very Good - Great experience!"}
-                    {rating === 5 && "Excellent - Outstanding!"}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Share your feedback (optional):
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none transition-colors"
-                  rows="3"
-                  placeholder="Tell us about your experience..."
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  onClick={submitFeedback}
-                  disabled={rating === 0}
-                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl font-semibold transition-colors"
-                >
-                  Submit Feedback
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedOrder(null);
-                    setRating(0);
-                    setComment('');
-                  }}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-3 rounded-xl font-semibold transition-colors"
-                >
-                  Skip
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

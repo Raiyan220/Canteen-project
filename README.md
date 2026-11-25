@@ -1,41 +1,27 @@
-# Smart Digital Canteen (`Canteen-project`) — MERN Stack MVP
+# CrimsonBite — Smart Digital Canteen (`Canteen-project`)
 
-A full-stack **Smart Digital Canteen** ordering and management platform built with the **MERN** stack (`MongoDB`, `Express`, `React`, `Node.js`) inside [`SmartDigitalCanteen_MVP/`](SmartDigitalCanteen_MVP/). It supports digital menu browsing, authenticated & guest ordering, polling-based live order tracking, and an admin management dashboard.
+A redesigned **Crimson Red**, HCI-focused **Smart Digital Canteen** ordering and kitchen operations platform built with the **MERN** stack (`MongoDB`, `Express`, `React`, `Node.js`) inside [`SmartDigitalCanteen_MVP/`](SmartDigitalCanteen_MVP/).
 
 ---
 
-## Features
+## Key Capabilities & UX Improvements
 
-- **Digital Menu & Filtering (`/`):** Browse menu items with category filters and search (`/api/menu`).
-- **Authenticated & Guest Ordering:** Register/log in with JWT authentication (`/api/auth`, `/login`, `/register`) or place orders as a guest (`/api/guest`).
-- **Cart & Live Order Tracking (`/history`):** Add/update items, place orders (`/api/orders`), and track order status updates via polling.
-- **Admin Dashboard (`/admin`):** Protected admin endpoints (`/api/admin`) for managing menu items, orders, and super-admin setup.
-- **Feedback Support:** Built-in customer feedback submission and persistence (`Feedback` model).
+- **Crimson Red Theme & Comfort Controls (`/`):**
+  - Supports **Warm Daylight** and **Crimson Dark** modes, **Text Size scaling** (`Standard`, `Large`, `Extra`), **Reduce Motion** preference, and keyboard focus navigation (`/` shortcut jumps straight to menu search).
+  - Non-blocking `aria-live` toast notifications replace all native browser `alert` / `confirm` / `prompt` dialogs.
+- **Digital Menu, Stock & Tray Ergonomics (`/`):**
+  - Category & Favorites tabs, Chef Specials highlighting, sorting by price or prep time, inline `+ / -` quantity steppers, pickup window selector (`ASAP`, `In 15 mins`, `In 30 mins`, `Lunch Break`), and kitchen notes.
+- **Live Order Tracking & Order History (`/history`, `/order-history`):**
+  - 4-stage live kitchen progress tracker (`Pending` -> `Preparing` -> `Ready` -> `Collected`) with polling, inline two-step cancellation (restores kitchen stock), one-click **Reorder**, and database-backed **Star Ratings & Feedback** (`POST /api/feedback`).
+- **Kitchen & Admin Console (`/admin`):**
+  - Server-verified passkey unlock (`POST /api/admin/verify`), live kitchen queue advancement, menu CRUD with availability/special toggles and inline delete confirmation, customer feedback view, daily & date-range sales reports, and CSV export.
 
 ---
 
 ## Tech Stack
 
-- **Frontend (`SmartDigitalCanteen_MVP/frontend/`):** React 18, Vite 5, React Router, Tailwind CSS, Axios, Framer Motion
+- **Frontend (`SmartDigitalCanteen_MVP/frontend/`):** React 18, Vite 5, React Router v6, Tailwind CSS, Framer Motion, Axios
 - **Backend (`SmartDigitalCanteen_MVP/backend/`):** Node.js, Express, MongoDB (`Mongoose`), JWT (`jsonwebtoken`), `bcryptjs`, CORS, Morgan
-
----
-
-## Project Structure
-
-```text
-└── SmartDigitalCanteen_MVP/
-    ├── backend/
-    │   ├── app.js           # Express app & API route mounting (/api/menu, /orders, /admin, /auth, /guest)
-    │   ├── server.js        # Server entrypoint
-    │   ├── models/          # Admin, Feedback, GuestUser, MenuItem, Order, User
-    │   ├── routes/          # adminRoutes, authRoutes, feedbackRoutes, guestRoutes, menuRoutes, orderRoutes
-    │   ├── controllers/     # Route business logic
-    │   ├── seed/            # Sample menu seeder (npm run seed)
-    │   └── scripts/         # Super-admin bootstrap script
-    └── frontend/
-        └── src/pages/       # Home, Login, Register, OrderHistory, AdminDashboard
-```
 
 ---
 
@@ -49,7 +35,7 @@ cd SmartDigitalCanteen_MVP
 ```bash
 cd backend
 npm install
-npm run seed          # populate sample menu items
+npm run seed          # populate sample menu items (auto-seeds on empty DB too)
 npm run dev           # starts API server (http://localhost:5000)
 ```
 
@@ -60,4 +46,5 @@ npm install
 npm run dev           # starts Vite dev server (http://localhost:5173)
 ```
 
-Or run both together from `SmartDigitalCanteen_MVP/` with `npm start` (via `concurrently`). See [SmartDigitalCanteen_MVP/README.md](SmartDigitalCanteen_MVP/README.md) for deployment notes.
+### Production Build & Single-Service Deploy (Render)
+The root [`render.yaml`](render.yaml) builds `frontend/dist` and serves both `/api/*` endpoints and the React SPA from `SmartDigitalCanteen_MVP/backend/server.js`. Set `MONGO_URI`, `ADMIN_PASSWORD`, and `JWT_SECRET` in Render environment variables.

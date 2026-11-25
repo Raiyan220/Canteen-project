@@ -3,5 +3,121 @@
 @tailwind utilities;
 
 :root {
-  --brand: #2563eb;
+  --bg-base: #fffafb;
+  --bg-card: #ffffff;
+  --bg-elevated: #fff1f2;
+  --bg-subtle: #fef2f2;
+  --text-primary: #1a0b10;
+  --text-secondary: #4a2832;
+  --text-muted: #7a545e;
+  --border-color: #f3d6da;
+  --border-strong: #e4aeb6;
+  --accent: #dc2626;
+  --accent-hover: #b91c1c;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg-base: #0d0608;
+  --bg-card: #160a0e;
+  --bg-elevated: #221016;
+  --bg-subtle: #1c0c11;
+  --text-primary: #fdf2f4;
+  --text-secondary: #e6c6ce;
+  --text-muted: #b08591;
+  --border-color: #361720;
+  --border-strong: #5c2231;
+  --accent: #ef4444;
+  --accent-hover: #dc2626;
+  color-scheme: dark;
+}
+
+[data-text-scale="normal"] {
+  font-size: 16px;
+}
+
+[data-text-scale="large"] {
+  font-size: 17.5px;
+}
+
+[data-text-scale="xl"] {
+  font-size: 19px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  /* High-visibility accessible focus rings for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 100;
+  padding: 0.65rem 1.1rem;
+  border-radius: 0.75rem;
+  background-color: #b91c1c;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 10px 25px rgba(185, 28, 28, 0.35);
+  transition: top 140ms ease;
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* Reduced motion accessibility guard */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Subtle crimson scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b91c1c;
 }
