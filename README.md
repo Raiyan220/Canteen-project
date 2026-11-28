@@ -4,6 +4,16 @@ A redesigned **Crimson Red**, HCI-focused **Smart Digital Canteen** ordering and
 
 ---
 
+## Live Demo & Screenshot
+
+- **Live App:** [crimsonbite-smart-canteen.onrender.com](https://crimsonbite-smart-canteen.onrender.com)
+
+<p align="center">
+  <img src="./screenshots/crimsonbite_home.png" alt="CrimsonBite Smart Digital Canteen" width="720" />
+</p>
+
+---
+
 ## Key Capabilities & UX Improvements
 
 - **Crimson Red Theme & Comfort Controls (`/`):**
